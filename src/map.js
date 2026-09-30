@@ -140,7 +140,7 @@ export function mountMap({ container, areas, onSelect, onCalibrate }) {
       return;
     }
 
-    // 1本指ドラッグ移動（速度を補正して高速化）
+    // 1本指ドラッグ移動（1.35倍ブーストでより軽快に高速化）
     if (drag && drag.pointerId === event.pointerId && pointers.size === 1) {
       const rawDx = event.clientX - drag.startX;
       const rawDy = event.clientY - drag.startY;
@@ -150,9 +150,9 @@ export function mountMap({ container, areas, onSelect, onCalibrate }) {
       }
 
       const rect = svg.getBoundingClientRect();
-      // 画面ピクセルと内部SVG座標（1200×900）の比率を反映して追従速度を最適化
-      const speedFactorX = (1200 / (rect.width || 1200));
-      const speedFactorY = (900 / (rect.height || 900));
+      const boost = 1.35; // 追従速度の加速係数
+      const speedFactorX = (1200 / (rect.width || 1200)) * boost;
+      const speedFactorY = (900 / (rect.height || 900)) * boost;
 
       applyZoom({
         ...zoom,
