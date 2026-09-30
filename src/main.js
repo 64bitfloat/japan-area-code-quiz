@@ -131,7 +131,7 @@ function bind() {
 
 async function init() {
   try {
-    const response = await fetch('/data/areaData.json', { cache: 'no-store' });
+    const response = await fetch('./data/areaData.json', { cache: 'no-store' });
     if (!response.ok) throw new Error(`areaData.json: HTTP ${response.status}`);
     const data = await response.json();
     const codes = new Set();
