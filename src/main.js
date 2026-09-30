@@ -47,12 +47,19 @@ function shell() {
         <aside class="control-column">
           <header class="topbar">
             <div class="brand"><div class="brand-mark" aria-hidden="true">◎</div><div class="brand-copy"><div class="brand-name">日本市外局番クイズ</div><div class="brand-kicker">SIGNAL ATLAS / MAP MEMORY LAB</div></div></div>
-            <div class="top-actions"><button class="icon-button" id="theme-toggle" aria-label="テーマを切り替える">☼</button><button class="soft-button" id="reset-stats">統計をリセット</button></div>
+            <div class="top-actions"><button class="icon-button" id="theme-toggle" aria-label="テーマを切り替える">☼</button></div>
           </header>
           <div class="mode-row mode-row-top"><span class="micro-label">PLAY MODE</span><div class="mode-switch"><button id="mode-quiz" class="active">クイズモード</button><button id="mode-study">学習モード</button></div></div>
           <article class="question-card" aria-label="出題情報">
-            <div class="question-head"><span class="eyebrow">CURRENT CHALLENGE</span></div>
-            <div><h1 class="question-title" id="question-title"></h1><p class="question-subtitle" id="question-subtitle">地図上の正しい電話番号区域をクリックしてください。</p><p class="feedback" id="feedback" aria-live="polite"></p></div>
+            <div class="question-head">
+              <span class="eyebrow">CHALLENGE</span>
+              <button class="soft-button mini-reset-btn" id="reset-stats" title="成績を初期化">↺ リセット</button>
+            </div>
+            <div>
+              <h1 class="question-title" id="question-title"></h1>
+              <p class="question-subtitle" id="question-subtitle">地図上の正しい電話番号区域をクリックしてください。</p>
+              <p class="feedback" id="feedback" aria-live="polite"></p>
+            </div>
             <div class="study-detail-card" id="study-detail-card">
               <div class="micro-label">SELECTED AREA</div><div class="study-placeholder" id="study-placeholder">地図上のエリアをクリックすると、市外局番と地域名が表示されます</div>
               <div class="study-detail-content" id="study-detail-content"></div>
@@ -130,7 +137,13 @@ function selectArea(code) {
 
 function bind() {
   $('#theme-toggle').addEventListener('click', () => { state.theme = state.theme === 'dark' ? 'light' : 'dark'; localStorage.setItem(THEME_KEY, state.theme); render(); });
-  $('#reset-stats').addEventListener('click', () => { state.stats = { ...initialStats }; saveStats(); render(); });
+  $('#reset-stats').addEventListener('click', () => {
+    if (confirm('統計記録をリセットしますか？')) {
+      state.stats = { ...initialStats };
+      saveStats();
+      render();
+    }
+  });
   $('#mode-quiz').addEventListener('click', () => { state.mode = 'quiz'; state.studySelection = null; state.map.clearHighlight(); $('#study-panel').classList.remove('visible'); state.current = pickQuestion(); render(); });
   $('#mode-study').addEventListener('click', () => { state.mode = 'study'; state.studySelection = null; state.isBusy = false; state.feedback = null; state.map.clearHighlight(); render(); });
   $('#zoom-in').addEventListener('click', () => state.map.zoomIn());
