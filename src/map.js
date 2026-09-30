@@ -101,13 +101,13 @@ export function mountMap({ container, areas, onSelect, onCalibrate }) {
         ty: zoom.y
       };
     } else if (pointers.size === 2) {
-      // 2本指検知：ピンチモードへ移行
+      // 2本指ピンチモードへ移行
       drag = null;
       suppressClick = true;
       const pts = Array.from(pointers.values());
       pinchStartDistance = Math.hypot(pts[0].x - pts[1].x, pts[0].y - pts[1].y);
       pinchStartScale = zoom.scale;
-      
+
       const rect = svg.getBoundingClientRect();
       const midX = (pts[0].x + pts[1].x) / 2;
       const midY = (pts[0].y + pts[1].y) / 2;
@@ -118,12 +118,12 @@ export function mountMap({ container, areas, onSelect, onCalibrate }) {
     }
   });
 
-  // ポインター移動（1本指ドラッグ または 2本指ピンチズーム）
+  // ポインター移動
   svg.addEventListener('pointermove', (event) => {
     if (!pointers.has(event.pointerId)) return;
     pointers.set(event.pointerId, { x: event.clientX, y: event.clientY });
 
-    // 2本指ピンチズームの処理
+    // 2本指ピンチズーム処理
     if (pointers.size === 2 && pinchStartDistance && pinchStartScale && pinchCenter) {
       suppressClick = true;
       const pts = Array.from(pointers.values());
@@ -140,15 +140,24 @@ export function mountMap({ container, areas, onSelect, onCalibrate }) {
       return;
     }
 
-    // 1本指ドラッグ移動の処理
+    // 1本指ドラッグ移動（速度を補正して高速化）
     if (drag && drag.pointerId === event.pointerId && pointers.size === 1) {
-      if (Math.hypot(event.clientX - drag.startX, event.clientY - drag.startY) > 6) {
+      const rawDx = event.clientX - drag.startX;
+      const rawDy = event.clientY - drag.startY;
+
+      if (Math.hypot(rawDx, rawDy) > 6) {
         suppressClick = true;
       }
+
+      const rect = svg.getBoundingClientRect();
+      // 画面ピクセルと内部SVG座標（1200×900）の比率を反映して追従速度を最適化
+      const speedFactorX = (1200 / (rect.width || 1200));
+      const speedFactorY = (900 / (rect.height || 900));
+
       applyZoom({
         ...zoom,
-        x: drag.tx + (event.clientX - drag.startX),
-        y: drag.ty + (event.clientY - drag.startY)
+        x: drag.tx + (rawDx * speedFactorX),
+        y: drag.ty + (rawDy * speedFactorY)
       });
     }
   });
@@ -164,7 +173,6 @@ export function mountMap({ container, areas, onSelect, onCalibrate }) {
     if (drag?.pointerId === event.pointerId) {
       drag = null;
     }
-    // 指を離した直後の誤クリック発火を防止
     window.setTimeout(() => {
       if (pointers.size === 0) suppressClick = false;
     }, 50);
