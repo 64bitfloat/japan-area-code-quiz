@@ -73,11 +73,12 @@ export function mountMap({ container, areas, onSelect, onCalibrate }) {
     window.setTimeout(() => canvas.classList.remove('map-transforming'), 180);
   };
 
+  // 最大倍率を 9.0 に拡張
   const zoomAt = (clientX, clientY, factor) => {
     const rect = svg.getBoundingClientRect();
     const px = ((clientX - rect.left) / rect.width) * 1200;
     const py = ((clientY - rect.top) / rect.height) * 900;
-    const nextScale = clamp(zoom.scale * factor, 0.55, 3.5);
+    const nextScale = clamp(zoom.scale * factor, 0.55, 9.0);
     const ratio = nextScale / zoom.scale;
     applyZoom({ scale: nextScale, x: px - (px - zoom.x) * ratio, y: py - (py - zoom.y) * ratio }, true);
   };
@@ -85,7 +86,7 @@ export function mountMap({ container, areas, onSelect, onCalibrate }) {
   // PCマウスホイールズーム
   svg.addEventListener('wheel', (event) => {
     event.preventDefault();
-    zoomAt(event.clientX, event.clientY, event.deltaY < 0 ? 1.12 : 0.89);
+    zoomAt(event.clientX, event.clientY, event.deltaY < 0 ? 1.15 : 0.87);
   }, { passive: false });
 
   // ポインター押下
@@ -123,13 +124,13 @@ export function mountMap({ container, areas, onSelect, onCalibrate }) {
     if (!pointers.has(event.pointerId)) return;
     pointers.set(event.pointerId, { x: event.clientX, y: event.clientY });
 
-    // 2本指ピンチズーム処理
+    // 2本指ピンチズーム処理（最大9.0倍まで拡大可能）
     if (pointers.size === 2 && pinchStartDistance && pinchStartScale && pinchCenter) {
       suppressClick = true;
       const pts = Array.from(pointers.values());
       const currentDist = Math.hypot(pts[0].x - pts[1].x, pts[0].y - pts[1].y);
       const factor = currentDist / pinchStartDistance;
-      const nextScale = clamp(pinchStartScale * factor, 0.55, 3.5);
+      const nextScale = clamp(pinchStartScale * factor, 0.55, 9.0);
       const ratio = nextScale / zoom.scale;
 
       applyZoom({
@@ -140,7 +141,7 @@ export function mountMap({ container, areas, onSelect, onCalibrate }) {
       return;
     }
 
-    // 1本指ドラッグ移動（1.35倍ブーストでより軽快に高速化）
+    // 1本指ドラッグ移動（高速追従）
     if (drag && drag.pointerId === event.pointerId && pointers.size === 1) {
       const rawDx = event.clientX - drag.startX;
       const rawDy = event.clientY - drag.startY;
@@ -150,7 +151,7 @@ export function mountMap({ container, areas, onSelect, onCalibrate }) {
       }
 
       const rect = svg.getBoundingClientRect();
-      const boost = 1.35; // 追従速度の加速係数
+      const boost = 1.35;
       const speedFactorX = (1200 / (rect.width || 1200)) * boost;
       const speedFactorY = (900 / (rect.height || 900)) * boost;
 
@@ -218,8 +219,8 @@ export function mountMap({ container, areas, onSelect, onCalibrate }) {
 
   return {
     resetZoom() { applyZoom({ x: 0, y: 0, scale: 0.86 }, true); },
-    zoomIn() { zoomAt(container.getBoundingClientRect().left + container.clientWidth / 2, container.getBoundingClientRect().top + container.clientHeight / 2, 1.22); },
-    zoomOut() { zoomAt(container.getBoundingClientRect().left + container.clientWidth / 2, container.getBoundingClientRect().top + container.clientHeight / 2, 0.82); },
+    zoomIn() { zoomAt(container.getBoundingClientRect().left + container.clientWidth / 2, container.getBoundingClientRect().top + container.clientHeight / 2, 1.35); },
+    zoomOut() { zoomAt(container.getBoundingClientRect().left + container.clientWidth / 2, container.getBoundingClientRect().top + container.clientHeight / 2, 0.74); },
     highlight({ selected, answer, result }) {
       groupMap.forEach((group, code) => {
         group.classList.toggle('is-selected', code === selected);
