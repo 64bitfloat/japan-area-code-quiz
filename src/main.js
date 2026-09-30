@@ -7,7 +7,7 @@ const initialStats = { correct: 0, answered: 0, streak: 0, bestStreak: 0 };
 
 const savedStats = (() => { try { return { ...initialStats, ...JSON.parse(localStorage.getItem(APP_KEY) || '{}') }; } catch { return { ...initialStats }; } })();
 const state = {
-  areas: [], current: null, feedback: null, calibration: null, hintLevel: 0, isBusy: false, mode: 'quiz', studySelection: null, stats: savedStats,
+  areas: [], current: null, feedback: null, calibration: null, isBusy: false, mode: 'quiz', studySelection: null, stats: savedStats,
   theme: localStorage.getItem(THEME_KEY) || 'dark', map: null
 };
 
@@ -20,7 +20,25 @@ function pickQuestion() {
   return choices[Math.floor(Math.random() * choices.length)] || state.areas[0];
 }
 function accuracy() { return state.stats.answered ? Math.round((state.stats.correct / state.stats.answered) * 100) : 0; }
-function questionText() { return state.mode === 'study' ? '地図帳モード' : `${state.current?.code || '---'} はどこ？`; }
+
+// 巨大正誤判定アニメーション
+function showJudgmentOverlay(isCorrect) {
+  let overlay = $('#judgment-overlay');
+  if (!overlay) {
+    overlay = document.createElement('div');
+    overlay.id = 'judgment-overlay';
+    overlay.className = 'judgment-overlay';
+    const viewport = $('#map-viewport') || document.body;
+    viewport.appendChild(overlay);
+  }
+
+  overlay.textContent = isCorrect ? '◯' : '✕';
+  overlay.className = `judgment-overlay show ${isCorrect ? 'is-circle' : 'is-cross'}`;
+
+  window.setTimeout(() => {
+    overlay.classList.remove('show');
+  }, 650);
+}
 
 function shell() {
   $('#app').innerHTML = `
@@ -40,12 +58,6 @@ function shell() {
               <div class="study-detail-content" id="study-detail-content"></div>
             </div>
           </article>
-          <aside class="side-card quiz-tools" data-quiz-only aria-label="段階ヒント">
-            <h2>段階ヒント</h2>
-            <div class="hint-box"><div class="micro-label">REGION BLOCK</div><div class="hint-value" id="hint-region">未使用</div></div>
-            <div class="hint-box"><div class="micro-label">REPRESENTATIVE AREA</div><div class="hint-value" id="hint-city">未使用</div></div>
-            <div class="hint-actions"><button class="soft-button" id="hint-1">地方を表示</button><button class="soft-button" id="hint-2">都市を表示</button></div>
-          </aside>
           <section class="stat-strip" aria-label="プレイ統計">
             <div class="stat"><span class="stat-label">SCORE</span><span class="stat-value green" id="stat-score">0 / 0</span></div>
             <div class="stat"><span class="stat-label">STREAK</span><span class="stat-value" id="stat-streak">0</span></div>
@@ -70,10 +82,6 @@ function render() {
   const feedback = $('#feedback');
   feedback.textContent = state.feedback?.message || '';
   feedback.className = `feedback ${state.feedback?.result || ''}`;
-  $('#hint-region').textContent = state.hintLevel >= 1 && state.current ? state.current.region : '未使用';
-  $('#hint-city').textContent = state.hintLevel >= 2 && state.current ? `${state.current.prefecture} / ${state.current.representative}` : '未使用';
-  $('#hint-1').disabled = state.mode === 'study' || state.hintLevel >= 1 || state.isBusy;
-  $('#hint-2').disabled = state.mode === 'study' || state.hintLevel >= 2 || state.isBusy;
   $('#stat-score').textContent = `${state.stats.correct} / ${state.stats.answered}`;
   $('#stat-streak').textContent = state.stats.streak;
   $('#stat-best').textContent = state.stats.bestStreak;
@@ -81,7 +89,6 @@ function render() {
   $('#stat-pool').textContent = `${state.areas.length} 区画`;
   $('#mode-quiz').classList.toggle('active', state.mode === 'quiz');
   $('#mode-study').classList.toggle('active', state.mode === 'study');
-  document.querySelectorAll('[data-quiz-only]').forEach((element) => element.hidden = state.mode !== 'quiz');
   $('#study-detail-card').hidden = state.mode !== 'study';
   const detail = state.studySelection;
   $('#study-placeholder').hidden = Boolean(detail);
@@ -113,16 +120,18 @@ function selectArea(code) {
   else state.stats.streak = 0;
   state.feedback = { result: correct ? 'correct' : 'wrong', message: correct ? `正解！ ${state.current.prefecture}` : `惜しい。正解は ${state.current.code}（${state.current.prefecture}）` };
   state.map.highlight({ selected: code, answer: state.current.code, result: correct ? 'correct' : 'wrong' });
+  
+  // 画面中央に特大の◯ / ✕ を表示
+  showJudgmentOverlay(correct);
+  
   saveStats(); render();
-  window.setTimeout(() => { state.current = pickQuestion(); state.hintLevel = 0; state.feedback = null; state.isBusy = false; state.map.clearHighlight(); render(); }, 1500);
+  window.setTimeout(() => { state.current = pickQuestion(); state.feedback = null; state.isBusy = false; state.map.clearHighlight(); render(); }, 1500);
 }
 
 function bind() {
   $('#theme-toggle').addEventListener('click', () => { state.theme = state.theme === 'dark' ? 'light' : 'dark'; localStorage.setItem(THEME_KEY, state.theme); render(); });
   $('#reset-stats').addEventListener('click', () => { state.stats = { ...initialStats }; saveStats(); render(); });
-  $('#hint-1').addEventListener('click', () => { state.hintLevel = Math.max(state.hintLevel, 1); render(); });
-  $('#hint-2').addEventListener('click', () => { state.hintLevel = Math.max(state.hintLevel, 2); render(); });
-  $('#mode-quiz').addEventListener('click', () => { state.mode = 'quiz'; state.studySelection = null; state.map.clearHighlight(); $('#study-panel').classList.remove('visible'); state.current = pickQuestion(); state.hintLevel = 0; render(); });
+  $('#mode-quiz').addEventListener('click', () => { state.mode = 'quiz'; state.studySelection = null; state.map.clearHighlight(); $('#study-panel').classList.remove('visible'); state.current = pickQuestion(); render(); });
   $('#mode-study').addEventListener('click', () => { state.mode = 'study'; state.studySelection = null; state.isBusy = false; state.feedback = null; state.map.clearHighlight(); render(); });
   $('#zoom-in').addEventListener('click', () => state.map.zoomIn());
   $('#zoom-out').addEventListener('click', () => state.map.zoomOut());
