@@ -11,9 +11,7 @@ function matrixAttr(matrix) {
 }
 
 export function mountMap({ container, areas, onSelect, onCalibrate }) {
-  // Keep the HTML overlays mounted by the shell (map-help and study-panel).
-  // Replacing all children here removed #study-panel, which made study clicks
-  // invisible and caused the Quiz button handler to throw on return.
+  // 既存のSVGマップのみを削除（オーバーレイHTMLは温存）
   container.querySelectorAll('.map-svg').forEach((oldMap) => oldMap.remove());
   const svg = svgEl('svg', {
     class: 'map-svg', viewBox: '0 0 1200 900', role: 'img',
@@ -62,6 +60,10 @@ export function mountMap({ container, areas, onSelect, onCalibrate }) {
   let drag = null;
   let suppressClick = false;
   const pointers = new Map();
+  let pinchStartDistance = null;
+  let pinchStartScale = null;
+  let pinchCenter = null;
+
   const clamp = (value, min, max) => Math.min(max, Math.max(min, value));
   const applyZoom = (next, animate = false) => {
     zoom = next;
@@ -70,32 +72,107 @@ export function mountMap({ container, areas, onSelect, onCalibrate }) {
     if (animate) canvas.classList.add('map-transforming');
     window.setTimeout(() => canvas.classList.remove('map-transforming'), 180);
   };
+
   const zoomAt = (clientX, clientY, factor) => {
     const rect = svg.getBoundingClientRect();
     const px = ((clientX - rect.left) / rect.width) * 1200;
     const py = ((clientY - rect.top) / rect.height) * 900;
-    const nextScale = clamp(zoom.scale * factor, 0.55, 2.5);
+    const nextScale = clamp(zoom.scale * factor, 0.55, 3.5);
     const ratio = nextScale / zoom.scale;
     applyZoom({ scale: nextScale, x: px - (px - zoom.x) * ratio, y: py - (py - zoom.y) * ratio }, true);
   };
-  svg.addEventListener('wheel', (event) => { event.preventDefault(); zoomAt(event.clientX, event.clientY, event.deltaY < 0 ? 1.12 : 0.89); }, { passive: false });
+
+  // PCマウスホイールズーム
+  svg.addEventListener('wheel', (event) => {
+    event.preventDefault();
+    zoomAt(event.clientX, event.clientY, event.deltaY < 0 ? 1.12 : 0.89);
+  }, { passive: false });
+
+  // ポインター押下
   svg.addEventListener('pointerdown', (event) => {
-    pointers.set(event.pointerId, [event.clientX, event.clientY]);
-    drag = { pointerId: event.pointerId, x: event.clientX, y: event.clientY, startX: event.clientX, startY: event.clientY, tx: zoom.x, ty: zoom.y };
+    pointers.set(event.pointerId, { x: event.clientX, y: event.clientY });
+
+    if (pointers.size === 1) {
+      drag = {
+        pointerId: event.pointerId,
+        startX: event.clientX,
+        startY: event.clientY,
+        tx: zoom.x,
+        ty: zoom.y
+      };
+    } else if (pointers.size === 2) {
+      // 2本指検知：ピンチモードへ移行
+      drag = null;
+      suppressClick = true;
+      const pts = Array.from(pointers.values());
+      pinchStartDistance = Math.hypot(pts[0].x - pts[1].x, pts[0].y - pts[1].y);
+      pinchStartScale = zoom.scale;
+      
+      const rect = svg.getBoundingClientRect();
+      const midX = (pts[0].x + pts[1].x) / 2;
+      const midY = (pts[0].y + pts[1].y) / 2;
+      pinchCenter = {
+        px: ((midX - rect.left) / rect.width) * 1200,
+        py: ((midY - rect.top) / rect.height) * 900
+      };
+    }
   });
+
+  // ポインター移動（1本指ドラッグ または 2本指ピンチズーム）
   svg.addEventListener('pointermove', (event) => {
-    if (!drag || drag.pointerId !== event.pointerId) return;
-    const dx = event.clientX - drag.x; const dy = event.clientY - drag.y;
-    if (Math.hypot(event.clientX - drag.startX, event.clientY - drag.startY) > 5) suppressClick = true;
-    applyZoom({ ...zoom, x: drag.tx + (event.clientX - drag.startX), y: drag.ty + (event.clientY - drag.startY) });
+    if (!pointers.has(event.pointerId)) return;
+    pointers.set(event.pointerId, { x: event.clientX, y: event.clientY });
+
+    // 2本指ピンチズームの処理
+    if (pointers.size === 2 && pinchStartDistance && pinchStartScale && pinchCenter) {
+      suppressClick = true;
+      const pts = Array.from(pointers.values());
+      const currentDist = Math.hypot(pts[0].x - pts[1].x, pts[0].y - pts[1].y);
+      const factor = currentDist / pinchStartDistance;
+      const nextScale = clamp(pinchStartScale * factor, 0.55, 3.5);
+      const ratio = nextScale / zoom.scale;
+
+      applyZoom({
+        scale: nextScale,
+        x: pinchCenter.px - (pinchCenter.px - zoom.x) * ratio,
+        y: pinchCenter.py - (pinchCenter.py - zoom.y) * ratio
+      });
+      return;
+    }
+
+    // 1本指ドラッグ移動の処理
+    if (drag && drag.pointerId === event.pointerId && pointers.size === 1) {
+      if (Math.hypot(event.clientX - drag.startX, event.clientY - drag.startY) > 6) {
+        suppressClick = true;
+      }
+      applyZoom({
+        ...zoom,
+        x: drag.tx + (event.clientX - drag.startX),
+        y: drag.ty + (event.clientY - drag.startY)
+      });
+    }
   });
+
+  // ポインター終了
   const endPointer = (event) => {
     pointers.delete(event.pointerId);
-    if (drag?.pointerId === event.pointerId) drag = null;
-    window.setTimeout(() => { suppressClick = false; }, 30);
+    if (pointers.size < 2) {
+      pinchStartDistance = null;
+      pinchStartScale = null;
+      pinchCenter = null;
+    }
+    if (drag?.pointerId === event.pointerId) {
+      drag = null;
+    }
+    // 指を離した直後の誤クリック発火を防止
+    window.setTimeout(() => {
+      if (pointers.size === 0) suppressClick = false;
+    }, 50);
   };
+
   svg.addEventListener('pointerup', endPointer);
   svg.addEventListener('pointercancel', endPointer);
+
   const reportCalibration = (group, shape) => {
     if (!onCalibrate || !group || !shape) return;
     const area = areas.find((item) => item.code === group.dataset.code);
@@ -115,8 +192,12 @@ export function mountMap({ container, areas, onSelect, onCalibrate }) {
       center: { x: Number(center.x.toFixed(2)), y: Number(center.y.toFixed(2)) }
     });
   };
+
   svg.addEventListener('click', (event) => {
-    if (suppressClick) { event.stopPropagation(); return; }
+    if (suppressClick) {
+      event.stopPropagation();
+      return;
+    }
     const group = event.target.closest?.('.area-group');
     const shape = event.target.closest?.('.area-shape');
     if (group?.dataset.code) {
@@ -124,6 +205,7 @@ export function mountMap({ container, areas, onSelect, onCalibrate }) {
       onSelect(group.dataset.code);
     }
   });
+
   applyZoom(zoom);
 
   return {
