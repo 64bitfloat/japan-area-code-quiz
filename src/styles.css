@@ -14,6 +14,21 @@ button { font: inherit; }
 .icon-button, .soft-button { border: 1px solid var(--line); color: var(--text); background: var(--surface); cursor: pointer; border-radius: 12px; padding: 9px 12px; transition: .18s ease; }
 .icon-button { width: 40px; height: 40px; display: grid; place-items: center; font-size: 18px; }
 .icon-button:hover, .soft-button:hover { transform: translateY(-1px); border-color: rgba(125,211,252,.6); background: var(--surface-3); }
+
+/* リセットボタンのスタイル */
+.mini-reset-btn {
+  padding: 4px 9px;
+  font-size: 11px;
+  border-radius: 8px;
+  background: rgba(239, 68, 68, 0.12);
+  color: #fca5a5;
+  border: 1px solid rgba(239, 68, 68, 0.28);
+}
+.mini-reset-btn:hover {
+  background: rgba(239, 68, 68, 0.25);
+  border-color: rgba(239, 68, 68, 0.5);
+}
+
 .hero-grid { display: grid; grid-template-columns: minmax(0, 1fr) 300px; gap: 14px; align-items: stretch; }
 .question-card, .side-card, .stat-strip, .map-card { border: 1px solid var(--line); background: color-mix(in srgb, var(--surface) 92%, transparent); box-shadow: var(--shadow); }
 .question-card { position: relative; overflow: hidden; border-radius: 22px; padding: clamp(18px, 2.4vw, 27px); min-height: 158px; display: flex; flex-direction: column; justify-content: space-between; }
@@ -28,7 +43,7 @@ button { font: inherit; }
 .side-card { border-radius: 22px; padding: 16px; display: flex; flex-direction: column; gap: 10px; }
 .side-card h2 { margin: 0; font-size: 17px; }
 
-/* ヒント領域の完全非表示（不要なため） */
+/* ヒント領域の完全非表示 */
 .quiz-tools, .hint-box, .hint-actions, [class*="hint"] { display: none !important; }
 
 .mode-row { display: flex; align-items: center; justify-content: space-between; gap: 8px; border-top: 1px solid var(--line); padding-top: 14px; }
@@ -49,7 +64,7 @@ button { font: inherit; }
 .map-controls button { border: 1px solid var(--line); background: var(--surface-2); color: var(--text); border-radius: 8px; height: 30px; min-width: 30px; cursor: pointer; }
 .map-controls button:hover { border-color: rgba(125,211,252,.6); }
 
-/* マップ描画コンテナ：ブラウザの既定ジェスチャーを遮断しマルチタッチを保証 */
+/* マップ描画コンテナ */
 .map-viewport {
   min-height: 350px;
   height: clamp(350px, calc(100vh - 380px), 560px);
@@ -160,7 +175,7 @@ button { font: inherit; }
 .workspace > .map-card .study-panel { z-index: 6; }
 
 /* ==========================================================================
-   モバイル・タブレット最適化（マップ超最大化 & アプリ風レイアウト）
+   モバイル・タブレット最適化（モード切替バー復元・超薄型レイアウト）
    ========================================================================== */
 @media (max-width: 768px) {
   html, body {
@@ -188,11 +203,11 @@ button { font: inherit; }
     min-height: 0 !important;
   }
 
-  /* 上部極小バー（問題番号と出題のみを1行で表示） */
+  /* 上部固定バー */
   .control-column {
     flex: 0 0 auto !important;
     min-height: 0 !important;
-    padding: 6px 12px !important;
+    padding: 4px 10px !important;
     background: color-mix(in srgb, var(--surface) 96%, transparent) !important;
     border-bottom: 1px solid var(--line) !important;
     gap: 3px !important;
@@ -200,12 +215,34 @@ button { font: inherit; }
   }
 
   .control-column .topbar { display: none !important; }
-  .control-column .mode-row-top { display: none !important; }
   .brand-kicker, .footer-note, .sidebar-map-help, .question-subtitle { display: none !important; }
 
-  /* 出題カード：最小高さで横並び */
+  /* モード切り替えバー（超小型タブとして表示） */
+  .mode-row-top {
+    display: flex !important;
+    align-items: center !important;
+    justify-content: space-between !important;
+    padding: 1px 4px !important;
+    margin: 0 0 2px 0 !important;
+    border: none !important;
+    background: transparent !important;
+  }
+  .mode-row-top .micro-label { font-size: 8px !important; }
+  .mode-row-top .mode-switch {
+    padding: 2px !important;
+    gap: 2px !important;
+    border-radius: 6px !important;
+  }
+  .mode-row-top .mode-switch button {
+    padding: 2px 8px !important;
+    font-size: 10px !important;
+    border-radius: 4px !important;
+    line-height: 1.2 !important;
+  }
+
+  /* 出題カード：横並び＆右端にリセットボタン */
   .control-column .question-card {
-    padding: 4px 8px !important;
+    padding: 2px 4px !important;
     min-height: 0 !important;
     border-radius: 8px !important;
     border: none !important;
@@ -217,28 +254,47 @@ button { font: inherit; }
     justify-content: space-between !important;
     margin: 0 !important;
   }
+  .question-head {
+    order: 2 !important;
+    gap: 6px !important;
+  }
+  .question-head .eyebrow { display: none !important; }
+  .mini-reset-btn {
+    padding: 3px 7px !important;
+    font-size: 10px !important;
+    line-height: 1 !important;
+  }
+
   .question-card::after { display: none !important; }
   .control-column .question-title {
-    font-size: 26px !important;
+    font-size: 22px !important;
     margin: 0 !important;
     line-height: 1 !important;
   }
-  .feedback { margin: 0 !important; font-size: 13px !important; min-height: 0 !important; font-weight: 800 !important; }
+  .feedback { margin: 0 !important; font-size: 11px !important; min-height: 0 !important; font-weight: 800 !important; }
+
+  /* 学習モード時のインライン情報 */
+  .study-detail-card {
+    margin-top: 4px !important;
+    padding: 4px 8px !important;
+  }
+  .study-detail-card .study-code { font-size: 18px !important; }
+  .study-detail-card .study-meta { font-size: 10px !important; }
 
   /* スコア統計バーを1行の極小ステータスに集約 */
   .control-column .stat-strip {
     display: flex !important;
     justify-content: space-around !important;
-    padding: 2px 0 !important;
+    padding: 1px 0 !important;
     margin: 0 !important;
-    border-radius: 6px !important;
+    border-radius: 5px !important;
     background: rgba(0,0,0,0.15) !important;
   }
-  .stat { padding: 1px 4px !important; text-align: center !important; background: transparent !important; }
-  .stat-label { font-size: 8px !important; }
-  .stat-value { font-size: 13px !important; margin: 0 !important; }
+  .stat { padding: 1px 3px !important; text-align: center !important; background: transparent !important; }
+  .stat-label { font-size: 7px !important; }
+  .stat-value { font-size: 12px !important; margin: 0 !important; }
 
-  /* 地図を画面のほぼ全域（約85%）に拡大 */
+  /* 地図を画面のほぼ全域に拡大 */
   .workspace > .map-card {
     flex: 1 1 auto !important;
     height: 100% !important;
@@ -255,19 +311,22 @@ button { font: inherit; }
   }
 
   .workspace > .map-card .map-toolbar {
-    top: 6px !important;
-    left: 6px !important;
-    right: 6px !important;
-    padding: 4px 8px !important;
-    border-radius: 8px !important;
+    top: 5px !important;
+    left: 5px !important;
+    right: 5px !important;
+    padding: 3px 6px !important;
+    border-radius: 6px !important;
   }
-  .map-toolbar-title { font-size: 11px !important; }
+  .map-toolbar-title { font-size: 10px !important; }
 
+  /* 学習モード時の詳細ポップアップを画面下部にスライド固定 */
   .study-panel {
     bottom: 6px !important;
     right: 6px !important;
     left: 6px !important;
     max-width: none !important;
-    padding: 8px !important;
+    padding: 8px 12px !important;
+    font-size: 11px !important;
+    z-index: 20 !important;
   }
 }
